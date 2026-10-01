@@ -251,25 +251,25 @@
               <span class="role-icon icon-coral">↗</span>
               <div><h3>Vice President</h3><p>Strategy · People · Momentum</p></div>
               <span class="open-count">34 open roles</span>
-              <button type="button" aria-label="Apply for a vice president role" data-role-cta>→</button>
+              <button type="button" aria-label="Apply for a vice president role" data-role-cta data-role="Vice President">→</button>
             </article>
             <article class="role-row" data-category="operations">
               <span class="role-icon icon-yellow">$</span>
               <div><h3>Treasurer</h3><p>Budgets · Funding · Stewardship</p></div>
               <span class="open-count">27 open roles</span>
-              <button type="button" aria-label="Apply for a treasurer role" data-role-cta>→</button>
+              <button type="button" aria-label="Apply for a treasurer role" data-role-cta data-role="Treasurer">→</button>
             </article>
             <article class="role-row" data-category="operations">
               <span class="role-icon icon-blue">✓</span>
               <div><h3>Secretary</h3><p>Clarity · Systems · Follow-through</p></div>
               <span class="open-count">19 open roles</span>
-              <button type="button" aria-label="Apply for a secretary role" data-role-cta>→</button>
+              <button type="button" aria-label="Apply for a secretary role" data-role-cta data-role="Secretary">→</button>
             </article>
             <article class="role-row" data-category="creative">
               <span class="role-icon icon-lime">✦</span>
               <div><h3>Marketing Officer</h3><p>Storytelling · Design · Reach</p></div>
               <span class="open-count">41 open roles</span>
-              <button type="button" aria-label="Apply for a marketing officer role" data-role-cta>→</button>
+              <button type="button" aria-label="Apply for a marketing officer role" data-role-cta data-role="Marketing Officer">→</button>
             </article>
           </div>
         </div>
@@ -319,13 +319,25 @@
               <button type="button" data-persona="find_role">Find a role</button>
               <button type="button" data-persona="waitlist">Join the waitlist</button>
             </div>
+            <div class="role-choice" data-role-choice hidden>
+              <label for="role">Which role are you looking for?</label>
+              <select id="role" name="role">
+                <option value="">Choose a role</option>
+                <option>Vice President</option>
+                <option>Treasurer</option>
+                <option>Secretary</option>
+                <option>Marketing Officer</option>
+                <option>President</option>
+                <option>Other</option>
+              </select>
+            </div>
             <div class="email-row">
               <label class="sr-only" for="email">School email</label>
               <input id="email" name="email" type="email" placeholder="you@school.edu" autocomplete="email" required />
               <input class="form-honeypot" name="company" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
               <button class="button button-primary" type="submit" data-submit-button>Save my spot <span>↗</span></button>
             </div>
-            <p class="form-note" data-form-note>Your email, selection, and signup time will be saved securely. No spam.</p>
+            <p class="form-note" data-form-note>Your email, selection, and signup time will be saved securely. We’ll email you a confirmation.</p>
           </form>
 
           <a class="journey-button" href="mailto:hello@clubyclub.com">

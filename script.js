@@ -59,14 +59,21 @@ filterButtons.forEach((button) => {
 
 const personaButtons = document.querySelectorAll('[data-persona]');
 const emailInput = document.querySelector('#email');
+const roleChoice = document.querySelector('[data-role-choice]');
+const roleSelect = document.querySelector('#role');
+
+function setPersona(persona) {
+  personaButtons.forEach((item) => item.classList.toggle('active', item.dataset.persona === persona));
+  emailInput.placeholder = persona === 'find_role' ? 'student@school.edu' : 'you@school.edu';
+  roleChoice.hidden = persona !== 'find_role';
+  roleSelect.required = persona === 'find_role';
+
+  if (persona !== 'find_role') roleSelect.value = '';
+}
 
 personaButtons.forEach((button) => {
   button.addEventListener('click', () => {
-    personaButtons.forEach((item) => item.classList.remove('active'));
-    button.classList.add('active');
-    emailInput.placeholder = button.dataset.persona === 'find_role'
-      ? 'student@school.edu'
-      : 'you@school.edu';
+    setPersona(button.dataset.persona);
   });
 });
 
@@ -76,8 +83,8 @@ document.querySelector('[data-profile-cta]').addEventListener('click', () => {
 
 document.querySelectorAll('[data-role-cta]').forEach((button) => {
   button.addEventListener('click', () => {
-    personaButtons.forEach((item) => item.classList.toggle('active', item.dataset.persona === 'find_role'));
-    emailInput.placeholder = 'student@school.edu';
+    setPersona('find_role');
+    roleSelect.value = button.dataset.role;
     document.querySelector('#join').scrollIntoView({ behavior: 'smooth' });
   });
 });
@@ -118,6 +125,7 @@ signupForm.addEventListener('submit', async (event) => {
   const payload = new URLSearchParams({
     email: emailInput.value.trim(),
     intent: activePersona?.dataset.persona || 'waitlist',
+    role: roleSelect.value,
     client_time: new Date().toISOString(),
     user_agent: navigator.userAgent,
     company: signupForm.elements.company.value,
@@ -137,7 +145,7 @@ signupForm.addEventListener('submit', async (event) => {
     signupForm.reset();
     showToast({
       title: 'You’re on the list.',
-      message: 'Your signup was saved. We’ll be in touch soon.',
+      message: 'Your signup was saved. Check your inbox for confirmation.',
     });
   } catch (error) {
     showToast({

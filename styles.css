@@ -317,6 +317,10 @@ h1 em { color: #58704a; font-family: Georgia, "Times New Roman", serif; font-wei
 .persona-toggle { width: min(100%, 570px); margin: 0 auto 14px; padding: 4px; display: grid; grid-template-columns: repeat(3, 1fr); background: #0d1c3b; border: 1px solid rgba(255,255,255,.12); border-radius: 14px; }
 .persona-toggle button { padding: 10px 12px; color: #aeb8c9; background: transparent; border: 0; border-radius: 10px; font-size: 10px; font-weight: 800; cursor: pointer; }
 .persona-toggle button.active { color: var(--navy); background: var(--lime); }
+.role-choice { width: min(100%, 570px); margin: 0 auto 14px; text-align: left; }
+.role-choice label { display: block; margin: 0 0 7px 4px; color: #c8d0de; font-size: 10px; font-weight: 800; letter-spacing: .3px; }
+.role-choice select { width: 100%; min-height: 48px; padding: 0 42px 0 15px; color: var(--ink); background: white; border: 2px solid transparent; border-radius: 13px; outline: 0; font: inherit; cursor: pointer; }
+.role-choice select:focus { border-color: var(--blue); }
 .email-row { padding: 7px; display: grid; grid-template-columns: 1fr auto; background: white; border-radius: 16px; }
 .email-row input { min-width: 0; padding: 0 17px; color: var(--ink); background: transparent; border: 0; outline: 0; }
 .email-row input::placeholder { color: #9a9e9a; }
