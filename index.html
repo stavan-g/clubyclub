@@ -315,15 +315,17 @@
 
           <form class="signup-form" data-signup-form>
             <div class="persona-toggle" role="group" aria-label="Choose how you want to use clubyclub">
-              <button class="active" type="button" data-persona="hiring">I’m building a club</button>
-              <button type="button" data-persona="applying">I’m looking for a role</button>
+              <button class="active" type="button" data-persona="create_club">Create a club</button>
+              <button type="button" data-persona="find_role">Find a role</button>
+              <button type="button" data-persona="waitlist">Join the waitlist</button>
             </div>
             <div class="email-row">
               <label class="sr-only" for="email">School email</label>
               <input id="email" name="email" type="email" placeholder="you@school.edu" autocomplete="email" required />
-              <button class="button button-primary" type="submit">Join the waitlist <span>↗</span></button>
+              <input class="form-honeypot" name="company" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
+              <button class="button button-primary" type="submit" data-submit-button>Save my spot <span>↗</span></button>
             </div>
-            <p class="form-note" data-form-note>No spam. Just the good “we found your person” kind of news.</p>
+            <p class="form-note" data-form-note>Your email, selection, and signup time will be saved securely. No spam.</p>
           </form>
 
           <a class="journey-button" href="mailto:hello@clubyclub.com">
@@ -355,9 +357,10 @@
     </footer>
 
     <div class="toast" role="status" aria-live="polite" data-toast>
-      <span>✓</span><div><strong>You’re on the list.</strong><small>We’ll be in touch soon.</small></div>
+      <span data-toast-icon>✓</span><div><strong data-toast-title>You’re on the list.</strong><small data-toast-message>We’ll be in touch soon.</small></div>
     </div>
 
+    <script src="config.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

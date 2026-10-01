@@ -64,9 +64,9 @@ personaButtons.forEach((button) => {
   button.addEventListener('click', () => {
     personaButtons.forEach((item) => item.classList.remove('active'));
     button.classList.add('active');
-    emailInput.placeholder = button.dataset.persona === 'hiring'
-      ? 'you@school.edu'
-      : 'student@school.edu';
+    emailInput.placeholder = button.dataset.persona === 'find_role'
+      ? 'student@school.edu'
+      : 'you@school.edu';
   });
 });
 
@@ -76,7 +76,7 @@ document.querySelector('[data-profile-cta]').addEventListener('click', () => {
 
 document.querySelectorAll('[data-role-cta]').forEach((button) => {
   button.addEventListener('click', () => {
-    personaButtons.forEach((item) => item.classList.toggle('active', item.dataset.persona === 'applying'));
+    personaButtons.forEach((item) => item.classList.toggle('active', item.dataset.persona === 'find_role'));
     emailInput.placeholder = 'student@school.edu';
     document.querySelector('#join').scrollIntoView({ behavior: 'smooth' });
   });
@@ -84,14 +84,69 @@ document.querySelectorAll('[data-role-cta]').forEach((button) => {
 
 const signupForm = document.querySelector('[data-signup-form]');
 const toast = document.querySelector('[data-toast]');
+const toastIcon = document.querySelector('[data-toast-icon]');
+const toastTitle = document.querySelector('[data-toast-title]');
+const toastMessage = document.querySelector('[data-toast-message]');
+const submitButton = document.querySelector('[data-submit-button]');
 let toastTimer;
 
-signupForm.addEventListener('submit', (event) => {
+function showToast({ title, message, error = false }) {
+  toastIcon.textContent = error ? '!' : '✓';
+  toastTitle.textContent = title;
+  toastMessage.textContent = message;
+  toast.classList.toggle('error', error);
+  toast.classList.add('show');
+  window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => toast.classList.remove('show'), 4800);
+}
+
+signupForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (!signupForm.reportValidity()) return;
 
-  signupForm.reset();
-  toast.classList.add('show');
-  window.clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => toast.classList.remove('show'), 4200);
+  const endpoint = window.CLUBYCLUB_CONFIG?.waitlistEndpoint?.trim();
+  if (!endpoint) {
+    showToast({
+      title: 'The signup form is not connected yet.',
+      message: 'Add the Google Apps Script URL in config.js before launch.',
+      error: true,
+    });
+    return;
+  }
+
+  const activePersona = document.querySelector('[data-persona].active');
+  const payload = new URLSearchParams({
+    email: emailInput.value.trim(),
+    intent: activePersona?.dataset.persona || 'waitlist',
+    client_time: new Date().toISOString(),
+    user_agent: navigator.userAgent,
+    company: signupForm.elements.company.value,
+  });
+
+  submitButton.disabled = true;
+  submitButton.firstChild.textContent = 'Saving… ';
+
+  try {
+    await fetch(endpoint, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      body: payload,
+    });
+
+    signupForm.reset();
+    showToast({
+      title: 'You’re on the list.',
+      message: 'Your signup was saved. We’ll be in touch soon.',
+    });
+  } catch (error) {
+    showToast({
+      title: 'We couldn’t save your signup.',
+      message: 'Please try again or email hello@clubyclub.com.',
+      error: true,
+    });
+  } finally {
+    submitButton.disabled = false;
+    submitButton.firstChild.textContent = 'Save my spot ';
+  }
 });

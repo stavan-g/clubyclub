@@ -314,14 +314,16 @@ h1 em { color: #58704a; font-family: Georgia, "Times New Roman", serif; font-wei
 .spark-one { top: 55px; left: 12%; font-size: 34px; transform: rotate(15deg); }
 .spark-two { right: 12%; top: 105px; color: var(--coral); font-size: 22px; }
 .signup-form { position: relative; z-index: 2; max-width: 670px; margin: 0 auto; }
-.persona-toggle { width: fit-content; margin: 0 auto 14px; padding: 4px; display: flex; background: #0d1c3b; border: 1px solid rgba(255,255,255,.12); border-radius: 99px; }
-.persona-toggle button { padding: 9px 14px; color: #aeb8c9; background: transparent; border: 0; border-radius: 99px; font-size: 10px; font-weight: 800; cursor: pointer; }
+.persona-toggle { width: min(100%, 570px); margin: 0 auto 14px; padding: 4px; display: grid; grid-template-columns: repeat(3, 1fr); background: #0d1c3b; border: 1px solid rgba(255,255,255,.12); border-radius: 14px; }
+.persona-toggle button { padding: 10px 12px; color: #aeb8c9; background: transparent; border: 0; border-radius: 10px; font-size: 10px; font-weight: 800; cursor: pointer; }
 .persona-toggle button.active { color: var(--navy); background: var(--lime); }
 .email-row { padding: 7px; display: grid; grid-template-columns: 1fr auto; background: white; border-radius: 16px; }
 .email-row input { min-width: 0; padding: 0 17px; color: var(--ink); background: transparent; border: 0; outline: 0; }
 .email-row input::placeholder { color: #9a9e9a; }
 .email-row input:focus { box-shadow: inset 0 0 0 2px var(--blue); border-radius: 10px; }
 .form-note { margin: 12px 0 0 !important; color: #8490a4 !important; font-size: 10px !important; }
+.form-honeypot { position: absolute !important; left: -10000px !important; width: 1px !important; height: 1px !important; opacity: 0 !important; pointer-events: none !important; }
+.email-row .button[disabled] { opacity: .72; cursor: wait; transform: none; }
 .journey-button { position: relative; z-index: 2; margin: 48px -60px -50px; min-height: 62px; padding: 12px 34px; display: flex; justify-content: center; align-items: center; gap: 15px; color: var(--navy); background: var(--lime); font-size: 12px; font-weight: 800; }
 .journey-button span { white-space: nowrap; }
 .journey-button i { font-style: normal; opacity: .5; }
@@ -341,6 +343,7 @@ h1 em { color: #58704a; font-family: Georgia, "Times New Roman", serif; font-wei
 
 .toast { position: fixed; z-index: 150; right: 24px; bottom: 24px; min-width: 275px; padding: 14px 18px; display: flex; align-items: center; gap: 12px; color: white; background: var(--navy); border: 1px solid rgba(255,255,255,.15); border-radius: 14px; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transform: translateY(20px); transition: opacity 220ms ease, transform 220ms ease; }
 .toast.show { opacity: 1; transform: translateY(0); }
+.toast.error > span { color: white; background: var(--coral); }
 .toast > span { width: 30px; height: 30px; display: grid; place-items: center; color: var(--navy); background: var(--lime); border-radius: 50%; font-weight: 900; }
 .toast strong, .toast small { display: block; }
 .toast strong { font-size: 12px; }
