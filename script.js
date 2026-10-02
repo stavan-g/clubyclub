@@ -64,7 +64,7 @@ const roleSelect = document.querySelector('#role');
 
 function setPersona(persona) {
   personaButtons.forEach((item) => item.classList.toggle('active', item.dataset.persona === persona));
-  emailInput.placeholder = persona === 'find_role' ? 'student@school.edu' : 'you@school.edu';
+  emailInput.placeholder = 'you@example.com';
   roleChoice.hidden = persona !== 'find_role';
   roleSelect.required = persona === 'find_role';
 
@@ -135,22 +135,67 @@ signupForm.addEventListener('submit', async (event) => {
   submitButton.firstChild.textContent = 'Saving… ';
 
   try {
-    await fetch(endpoint, {
+    const response = await fetch(endpoint, {
       method: 'POST',
-      mode: 'no-cors',
+      mode: 'cors',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
       body: payload,
     });
+    const result = await response.json();
 
-    signupForm.reset();
+    if (result.status === 'duplicate_24h') {
+      showToast({
+        title: 'You’re already on the list.',
+        message: 'We already have this email for that role from the last 24 hours.',
+      });
+      return;
+    }
+
+    if (result.status === 'email_sent') {
+      signupForm.reset();
+      showToast({
+        title: 'You’re on the list.',
+        message: 'Your signup was saved. Check your inbox for confirmation.',
+      });
+      return;
+    }
+
+    if (['quota_reserved_for_summary', 'quota_exceeded', 'email_failed', 'sender_mismatch'].includes(result.status)) {
+      signupForm.reset();
+      showToast({
+        title: 'Your signup was saved.',
+        message: 'We could not send the confirmation email right now, but your place was saved.',
+      });
+      return;
+    }
+
+    if (['email_invalid', 'invalid_intent', 'invalid_role'].includes(result.status)) {
+      showToast({
+        title: 'Please check your details.',
+        message: result.status === 'email_invalid' ? 'Enter a valid email address and try again.' : 'Please choose a valid signup option.',
+        error: true,
+      });
+      return;
+    }
+
+    if (result.status === 'spam_blocked') {
+      showToast({
+        title: 'We couldn’t save that signup.',
+        message: 'Please try again without filling hidden fields.',
+        error: true,
+      });
+      return;
+    }
+
     showToast({
-      title: 'You’re on the list.',
-      message: 'Your signup was saved. Check your inbox for confirmation.',
+      title: 'We couldn’t confirm your signup.',
+      message: 'Please try again or email hello@clubyclub.com.',
+      error: true,
     });
   } catch (error) {
     showToast({
       title: 'We couldn’t save your signup.',
-      message: 'Please try again or email hello@clubyclub.com.',
+      message: 'Please try again in a moment or email hello@clubyclub.com.',
       error: true,
     });
   } finally {

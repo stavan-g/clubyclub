@@ -10,8 +10,8 @@ const SHEET_HEADERS = [
   "Intent",
   "Role",
   "Client time",
-  "User agent",
   "Status",
+  "User agent",
 ];
 
 function doGet() {
@@ -134,7 +134,8 @@ function doPost(event) {
   }
 
   const emailStatus = sendConfirmationEmail(email, intent, role);
-  sheet.getRange(rowNumber, 7).setValue(emailStatus);
+  const columns = getHeaderColumnMap(sheet);
+  sheet.getRange(rowNumber, columns["Status"]).setValue(emailStatus);
   SpreadsheetApp.flush();
 
   return jsonResponse({ ok: true, email_sent: emailStatus === "email_sent", status: emailStatus });
@@ -142,31 +143,53 @@ function doPost(event) {
 
 function ensureHeaders(sheet) {
   const existingColumnCount = Math.max(sheet.getLastColumn(), 1);
-  const existingHeaders = sheet.getRange(1, 1, 1, existingColumnCount).getValues()[0];
+  const existingRowCount = Math.max(sheet.getLastRow(), 1);
+  const existingData = sheet.getRange(1, 1, existingRowCount, existingColumnCount).getValues();
+  const existingHeaders = (existingData[0] || []).map((header) => String(header || "").trim());
+  const headerIndexes = {};
 
-  // Migrate the original six-column layout by inserting Role before Source, then remove Source.
-  if (existingHeaders[3] === "Source" && !existingHeaders.includes("Role")) {
-    sheet.insertColumnAfter(3);
-    sheet.deleteColumn(5);
-  } else if (existingHeaders[4] === "Source") {
-    // Migrate the previous eight-column layout by removing Source.
-    sheet.deleteColumn(5);
+  existingHeaders.forEach((header, index) => {
+    if (header) headerIndexes[header] = index;
+  });
+
+  // Rebuild the visible table in the requested order while preserving values by header name.
+  const migratedRows = existingData.slice(1).map((row) => SHEET_HEADERS.map((header) => {
+    const index = headerIndexes[header];
+    return index === undefined ? "" : row[index];
+  }));
+  sheet.getRange(1, 1, migratedRows.length + 1, SHEET_HEADERS.length)
+    .setValues([SHEET_HEADERS, ...migratedRows]);
+
+  if (existingColumnCount > SHEET_HEADERS.length) {
+    sheet.deleteColumns(SHEET_HEADERS.length + 1, existingColumnCount - SHEET_HEADERS.length);
   }
+}
 
-  const headerRange = sheet.getRange(1, 1, 1, SHEET_HEADERS.length);
-  headerRange.setValues([SHEET_HEADERS]);
+function getHeaderColumnMap(sheet) {
+  const headers = sheet.getRange(1, 1, 1, SHEET_HEADERS.length).getValues()[0]
+    .map((header) => String(header || "").trim());
+  const columns = {};
+
+  SHEET_HEADERS.forEach((header) => {
+    const index = headers.indexOf(header);
+    if (index === -1) throw new Error(`Missing required column: ${header}`);
+    columns[header] = index + 1;
+  });
+
+  return columns;
 }
 
 function appendStatusRow(sheet, params, email, intent, role, status) {
-  sheet.appendRow([
-    new Date(),
-    email,
-    intent,
-    role,
-    String(params.client_time || ""),
-    String(params.user_agent || "").slice(0, 500),
-    status,
-  ]);
+  const columns = getHeaderColumnMap(sheet);
+  const row = Array(SHEET_HEADERS.length).fill("");
+  row[columns["Submitted at"] - 1] = new Date();
+  row[columns.Email - 1] = email;
+  row[columns.Intent - 1] = intent;
+  row[columns.Role - 1] = role;
+  row[columns["Client time"] - 1] = String(params.client_time || "");
+  row[columns.Status - 1] = status;
+  row[columns["User agent"] - 1] = String(params.user_agent || "").slice(0, 500);
+  sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);
   SpreadsheetApp.flush();
   return sheet.getLastRow();
 }
@@ -178,13 +201,15 @@ function hasRecentDuplicate(sheet, email, role) {
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
   const normalizedEmail = String(email || "").trim().toLowerCase();
   const normalizedRole = String(role || "").trim().toLowerCase();
-  const rows = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+  const columns = getHeaderColumnMap(sheet);
+  const rows = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
 
   return rows.some((row) => {
-    const submittedAt = row[0] instanceof Date ? row[0].getTime() : new Date(row[0]).getTime();
+    const submittedAtValue = row[columns["Submitted at"] - 1];
+    const submittedAt = submittedAtValue instanceof Date ? submittedAtValue.getTime() : new Date(submittedAtValue).getTime();
     return submittedAt >= cutoff
-      && String(row[1] || "").trim().toLowerCase() === normalizedEmail
-      && String(row[3] || "").trim().toLowerCase() === normalizedRole;
+      && String(row[columns.Email - 1] || "").trim().toLowerCase() === normalizedEmail
+      && String(row[columns.Role - 1] || "").trim().toLowerCase() === normalizedRole;
   });
 }
 
@@ -215,7 +240,7 @@ function sendConfirmationEmail(email, intent, role) {
       "We saved your spot and will reach out as club opportunities become available.",
       "",
       "— The clubyclub team",
-      "clubyclub.com",
+      "https://stavan-g.github.io/clubyclub/",
       "",
       "If you didn’t submit this email, you can safely ignore this message.",
     ].join("\n");
@@ -237,7 +262,7 @@ function sendConfirmationEmail(email, intent, role) {
             <p style="margin:0;font-size:15px;line-height:1.6">Good people find good people.<br><strong>— The clubyclub team</strong></p>
           </div>
           <div style="padding:18px 32px;background:#f8f8f6;color:#7a8190;font-size:11px;line-height:1.5">
-            You received this because this address was submitted at clubyclub.com. If that wasn’t you, you can safely ignore this email.
+            You received this because this address was submitted at stavan-g.github.io/clubyclub. If that wasn’t you, you can safely ignore this email.
           </div>
         </div>
       </div>`;
@@ -280,14 +305,17 @@ function sendWeeklySignupSummary() {
 
   const now = new Date();
   const cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const columns = getHeaderColumnMap(sheet);
   const values = sheet.getDataRange().getValues();
   const records = values.slice(1)
     .map((row) => ({
-      submittedAt: row[0] instanceof Date ? row[0] : new Date(row[0]),
-      email: String(row[1] || ""),
-      intent: String(row[2] || "waitlist"),
-      role: String(row[3] || ""),
-      status: String(row[6] || "not_recorded"),
+      submittedAt: row[columns["Submitted at"] - 1] instanceof Date
+        ? row[columns["Submitted at"] - 1]
+        : new Date(row[columns["Submitted at"] - 1]),
+      email: String(row[columns.Email - 1] || ""),
+      intent: String(row[columns.Intent - 1] || "waitlist"),
+      role: String(row[columns.Role - 1] || ""),
+      status: String(row[columns.Status - 1] || "not_recorded"),
     }))
     .filter((record) => !Number.isNaN(record.submittedAt.getTime()) && record.submittedAt >= cutoff)
     .sort((a, b) => b.submittedAt.getTime() - a.submittedAt.getTime());
