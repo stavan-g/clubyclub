@@ -45,3 +45,19 @@ Confirmation emails are restricted to the `clubyclub.ops@gmail.com` sender accou
 To preview the owner digest immediately, run `sendWeeklySignupSummary` from the Apps Script editor. To stop the scheduled digest, run `disableWeeklySummary`.
 
 Confirm the final email address, website URL, and social handle in the footer before publishing.
+
+
+## Profiles and real role postings
+
+The beta app is available at `app.html`. It adds email-code accounts, editable candidate or club profiles, a real role-posting form, and a public open-role feed.
+
+After the next frontend deployment:
+
+1. Open the Google Apps Script project connected to the existing Sheet.
+2. Replace its code with the updated `google-apps-script.gs` from this repository.
+3. Save and deploy a new version of the existing web app, keeping the same `/exec` URL.
+4. Confirm the deployment still executes as `clubyclub.ops@gmail.com` and is available to anyone.
+5. Visit `app.html`, request a verification code, and confirm the new `Accounts` tab appears.
+6. Create a club account, save a profile, publish a test role, then check the `Roles` tab and public role feed.
+
+The first account verification creates the `Accounts` and `Roles` tabs automatically. This is an MVP passwordless email-code flow; before a larger public launch, add rate limiting, token expiry/rotation, account deletion, moderation, and a production database/authentication provider.

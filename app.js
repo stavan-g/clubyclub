@@ -33,7 +33,7 @@ function setProtected(visible) {
 }
 function fillProfile(profile) {
   if (!profile) return;
-  const form = $('[data-profile-form');
+  const form = $('[data-profile-form]');
   Object.entries(profile).forEach(([key, value]) => { if (form.elements[key]) form.elements[key].value = value || ''; });
 }
 async function loadSession() {
@@ -51,7 +51,7 @@ async function loadSession() {
   }
 }
 async function loadRoles() {
-  const feed = $('[data-role-feed');
+  const feed = $('[data-role-feed]');
   try {
     const response = await fetch(endpoint + '?action=roles_list');
     const result = await response.json();
