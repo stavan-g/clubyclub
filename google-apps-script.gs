@@ -14,7 +14,9 @@ const SHEET_HEADERS = [
   "User agent",
 ];
 
-function doGet() {
+function doGet(event) {
+  const action = String(event && event.parameter && event.parameter.action || "").trim();
+  if (action === "roles_list") return handleRolesList();
   return jsonResponse({ ok: true, service: "clubyclub-signups" });
 }
 
@@ -75,6 +77,9 @@ function disableWeeklySummary() {
 }
 
 function doPost(event) {
+  const requestedAction = String(event && event.parameter && event.parameter.action || "").trim();
+  if (requestedAction && requestedAction !== "waitlist") return handleAppPost(event, requestedAction);
+
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
 
@@ -315,7 +320,8 @@ function handleRolesList() {
   }
   return jsonResponse({ ok: true, roles: roles.slice(-50).reverse() });
 }
-\nfunction ensureHeaders(sheet) {
+
+function ensureHeaders(sheet) {
   const existingColumnCount = Math.max(sheet.getLastColumn(), 1);
   const existingRowCount = Math.max(sheet.getLastRow(), 1);
   const existingData = sheet.getRange(1, 1, existingRowCount, existingColumnCount).getValues();
