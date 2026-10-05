@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Create a clubyclub profile, discover student leadership roles, and post openings for your club.">
+  <title>clubyclub — Profiles and roles</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body class="app-page">
+  <header class="site-header" data-header>
+    <a class="brand" href="index.html#top" aria-label="clubyclub home">
+      <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+      <span>cluby<span>club</span></span>
+    </a>
+    <nav class="desktop-nav" aria-label="Main navigation">
+      <a href="#roles">Open roles</a>
+      <a href="#profile">My profile</a>
+      <a href="index.html#how">How it works</a>
+    </nav>
+    <a class="button button-small button-dark" href="index.html">Back to home</a>
+  </header>
+
+  <main class="app-shell">
+    <section class="app-hero">
+      <div class="section-kicker">The clubyclub beta</div>
+      <h1>Put your next <em>role</em> in motion.</h1>
+      <p>Create a profile, show what you can do, and publish real openings for your club.</p>
+    </section>
+
+    <section class="app-card" id="account">
+      <div class="card-heading">
+        <div><div class="section-kicker">01 · Account</div><h2>Start with your email.</h2></div>
+        <span class="status-pill" data-account-status>Not signed in</span>
+      </div>
+      <form data-start-form class="form-grid">
+        <label>Email address<input type="email" name="email" autocomplete="email" placeholder="you@example.com" required></label>
+        <label>What are you here to do?
+          <select name="user_type"><option value="candidate">Find a role</option><option value="club">Build a club team</option></select>
+        </label>
+        <button class="button button-primary" type="submit">Email me a code <span>→</span></button>
+      </form>
+      <form data-verify-form class="form-grid verify-form" hidden>
+        <label>Verification code<input name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="6 digits" pattern="[0-9]{6}" required></label>
+        <button class="button button-primary" type="submit">Verify account <span>→</span></button>
+      </form>
+      <p class="form-message" data-account-message aria-live="polite"></p>
+    </section>
+
+    <section class="app-card" id="profile" data-protected>
+      <div class="card-heading">
+        <div><div class="section-kicker">02 · Profile</div><h2>Make your signal clear.</h2></div>
+        <span class="status-pill success">Verified account</span>
+      </div>
+      <form data-profile-form class="form-grid">
+        <label>Your name<input name="display_name" required placeholder="Your name"></label>
+        <label>School or community<input name="school" placeholder="e.g. State University"></label>
+        <label class="full">Skills<input name="skills" placeholder="Event planning, design, fundraising"></label>
+        <label class="full">Short bio<textarea name="bio" rows="4" placeholder="What do you care about building?"></textarea></label>
+        <label>Availability<select name="availability"><option value="open">Open to opportunities</option><option value="limited">Limited availability</option><option value="not_now">Not right now</option></select></label>
+        <button class="button button-primary" type="submit">Save profile <span>→</span></button>
+      </form>
+      <p class="form-message" data-profile-message aria-live="polite"></p>
+    </section>
+
+    <section class="app-card" id="post-role" data-protected>
+      <div class="card-heading">
+        <div><div class="section-kicker">03 · Club posting</div><h2>Post a real opening.</h2></div>
+        <span class="status-pill">Visible in the role feed</span>
+      </div>
+      <form data-role-form class="form-grid">
+        <label>Club name<input name="club_name" required placeholder="e.g. Robotics Society"></label>
+        <label>Role title<input name="title" required placeholder="e.g. Treasurer"></label>
+        <label>Category<select name="category"><option>Leadership</option><option>Operations</option><option>Creative</option><option>Community</option></select></label>
+        <label>Commitment<input name="commitment" placeholder="2–4 hours/week"></label>
+        <label>Location<input name="location" placeholder="Campus, remote, or hybrid"></label>
+        <label class="full">What will this person do?<textarea name="description" rows="4" required placeholder="Describe the responsibilities, expectations, and what success looks like."></textarea></label>
+        <button class="button button-primary" type="submit">Publish role <span>→</span></button>
+      </form>
+      <p class="form-message" data-role-message aria-live="polite"></p>
+    </section>
+
+    <section class="app-card" id="roles">
+      <div class="card-heading">
+        <div><div class="section-kicker">Open roles</div><h2>Find a place to contribute.</h2></div>
+        <button class="text-button" data-refresh-roles type="button">Refresh ↻</button>
+      </div>
+      <div class="role-feed" data-role-feed><p class="empty-state">Loading open roles…</p></div>
+    </section>
+  </main>
+
+  <footer class="site-footer app-footer"><a class="brand brand-footer" href="index.html#top"><span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span><span>cluby<span>club</span></span></a><span>Build something worth showing up for.</span></footer>
+  <div class="toast" role="status" aria-live="polite" data-toast><span data-toast-icon>✓</span><div><strong data-toast-title>Done</strong><small data-toast-message></small></div></div>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

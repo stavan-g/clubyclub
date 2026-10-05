@@ -141,7 +141,181 @@ function doPost(event) {
   return jsonResponse({ ok: true, email_sent: emailStatus === "email_sent", status: emailStatus });
 }
 
-function ensureHeaders(sheet) {
+
+function handleAppPost(event, action) {
+  try {
+    const params = event && event.parameter ? event.parameter : {};
+    if (action === "account_start") return appAccountStart(params);
+    if (action === "account_verify") return appAccountVerify(params);
+    if (action === "session_profile") return appSessionProfile(params);
+    if (action === "profile_save") return appProfileSave(params);
+    if (action === "role_create") return appRoleCreate(params);
+    return jsonResponse({ ok: false, error: "unknown_action" });
+  } catch (error) {
+    console.error(error);
+    return jsonResponse({ ok: false, error: error.message || "server_error" });
+  }
+}
+
+function appSheet(name, headers) {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  if (!spreadsheet) throw new Error("No active spreadsheet is connected to this script.");
+  let sheet = spreadsheet.getSheetByName(name);
+  if (!sheet) sheet = spreadsheet.insertSheet(name);
+  const current = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), headers.length)).getValues()[0].map(String);
+  headers.forEach((header, index) => { if (String(current[index] || "").trim() !== header) sheet.getRange(1, index + 1).setValue(header); });
+  return sheet;
+}
+
+function appColumns(sheet) {
+  const values = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const columns = {};
+  values.forEach((value, index) => { if (String(value || "").trim()) columns[String(value).trim()] = index + 1; });
+  return columns;
+}
+
+function appFindRow(sheet, columnName, expected) {
+  if (sheet.getLastRow() < 2) return 0;
+  const columns = appColumns(sheet);
+  const values = sheet.getRange(2, columns[columnName], sheet.getLastRow() - 1, 1).getValues();
+  const normalized = String(expected || "").trim().toLowerCase();
+  for (let index = 0; index < values.length; index += 1) {
+    if (String(values[index][0] || "").trim().toLowerCase() === normalized) return index + 2;
+  }
+  return 0;
+}
+
+function appRandomCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function appRandomToken() {
+  return Utilities.getUuid() + Utilities.getUuid();
+}
+
+function appPublicProfile(sheet, row) {
+  const columns = appColumns(sheet);
+  return {
+    email: String(sheet.getRange(row, columns.Email).getValue() || ""),
+    display_name: String(sheet.getRange(row, columns["Display name"]).getValue() || ""),
+    user_type: String(sheet.getRange(row, columns["User type"]).getValue() || "candidate"),
+    school: String(sheet.getRange(row, columns.School).getValue() || ""),
+    skills: String(sheet.getRange(row, columns.Skills).getValue() || ""),
+    bio: String(sheet.getRange(row, columns.Bio).getValue() || ""),
+    availability: String(sheet.getRange(row, columns.Availability).getValue() || "open"),
+  };
+}
+
+function appAccountStart(params) {
+  const email = String(params.email || "").trim().toLowerCase();
+  const userType = ["candidate", "club"].includes(String(params.user_type || "")) ? String(params.user_type) : "candidate";
+  if (!isValidEmail(email)) return jsonResponse({ ok: false, error: "Enter a valid email address." });
+  if (getEffectiveUserEmail() !== CLUBYCLUB_OPS_EMAIL) return jsonResponse({ ok: false, error: "Account email is temporarily unavailable. Please try again later." });
+
+  const sheet = appSheet("Accounts", ["Created at", "Email", "User type", "Display name", "School", "Skills", "Bio", "Availability", "Verified", "Verification code", "Code expires", "Session token"]);
+  const row = appFindRow(sheet, "Email", email);
+  const code = appRandomCode();
+  const expires = new Date(Date.now() + 15 * 60 * 1000);
+  if (row) {
+    const columns = appColumns(sheet);
+    sheet.getRange(row, columns["User type"]).setValue(userType);
+    sheet.getRange(row, columns["Verification code"]).setValue(code);
+    sheet.getRange(row, columns["Code expires"]).setValue(expires);
+  } else {
+    const columns = appColumns(sheet);
+    const values = Array(sheet.getLastColumn()).fill("");
+    values[columns["Created at"] - 1] = new Date();
+    values[columns.Email - 1] = email;
+    values[columns["User type"] - 1] = userType;
+    values[columns["Verification code"] - 1] = code;
+    values[columns["Code expires"] - 1] = expires;
+    values[columns.Verified - 1] = "No";
+    sheet.getRange(sheet.getLastRow() + 1, 1, 1, values.length).setValues([values]);
+  }
+  MailApp.sendEmail({ to: email, subject: "Your clubyclub verification code", body: "Your clubyclub verification code is " + code + ". It expires in 15 minutes.", name: "clubyclub", replyTo: CLUBYCLUB_OPS_EMAIL });
+  return jsonResponse({ ok: true, message: "Check your email for a 6-digit verification code." });
+}
+
+function appAccountVerify(params) {
+  const email = String(params.email || "").trim().toLowerCase();
+  const code = String(params.code || "").trim();
+  const sheet = appSheet("Accounts", ["Created at", "Email", "User type", "Display name", "School", "Skills", "Bio", "Availability", "Verified", "Verification code", "Code expires", "Session token"]);
+  const row = appFindRow(sheet, "Email", email);
+  if (!row) return jsonResponse({ ok: false, error: "Start with your email first." });
+  const columns = appColumns(sheet);
+  const expires = new Date(sheet.getRange(row, columns["Code expires"]).getValue()).getTime();
+  if (String(sheet.getRange(row, columns["Verification code"]).getValue() || "") !== code || !expires || expires < Date.now()) return jsonResponse({ ok: false, error: "That code is invalid or expired." });
+  const token = appRandomToken();
+  sheet.getRange(row, columns.Verified).setValue("Yes");
+  sheet.getRange(row, columns["Verification code"]).setValue("");
+  sheet.getRange(row, columns["Code expires"]).setValue("");
+  sheet.getRange(row, columns["Session token"]).setValue(token);
+  return jsonResponse({ ok: true, token: token, profile: appPublicProfile(sheet, row) });
+}
+
+function appAuthorizedRow(token) {
+  if (!token) return { sheet: null, row: 0 };
+  const sheet = appSheet("Accounts", ["Created at", "Email", "User type", "Display name", "School", "Skills", "Bio", "Availability", "Verified", "Verification code", "Code expires", "Session token"]);
+  const row = appFindRow(sheet, "Session token", token);
+  return { sheet: row ? sheet : null, row: row };
+}
+
+function appSessionProfile(params) {
+  const found = appAuthorizedRow(String(params.token || ""));
+  if (!found.row) return jsonResponse({ ok: false, error: "Your session expired. Verify your email again." });
+  return jsonResponse({ ok: true, profile: appPublicProfile(found.sheet, found.row) });
+}
+
+function appProfileSave(params) {
+  const found = appAuthorizedRow(String(params.token || ""));
+  if (!found.row) return jsonResponse({ ok: false, error: "Verify your email before saving your profile." });
+  const columns = appColumns(found.sheet);
+  ["Display name", "School", "Skills", "Bio", "Availability"].forEach((header) => {
+    const key = header.toLowerCase().replace(" ", "_");
+    if (params[key] !== undefined) found.sheet.getRange(found.row, columns[header]).setValue(String(params[key] || "").trim().slice(0, 1000));
+  });
+  return jsonResponse({ ok: true, profile: appPublicProfile(found.sheet, found.row) });
+}
+
+function appRoleCreate(params) {
+  const found = appAuthorizedRow(String(params.token || ""));
+  if (!found.row) return jsonResponse({ ok: false, error: "Verify your email before posting a role." });
+  const account = appPublicProfile(found.sheet, found.row);
+  if (account.user_type !== "club") return jsonResponse({ ok: false, error: "Choose “Build a club team” when creating your account to post roles." });
+  const clubName = String(params.club_name || "").trim().slice(0, 120);
+  const title = String(params.title || "").trim().slice(0, 120);
+  const description = String(params.description || "").trim().slice(0, 2000);
+  if (!clubName || !title || !description) return jsonResponse({ ok: false, error: "Club name, role title, and description are required." });
+  const sheet = appSheet("Roles", ["Created at", "Owner email", "Club name", "Role title", "Category", "Description", "Commitment", "Location", "Status"]);
+  const columns = appColumns(sheet);
+  const values = Array(sheet.getLastColumn()).fill("");
+  values[columns["Created at"] - 1] = new Date();
+  values[columns["Owner email"] - 1] = account.email;
+  values[columns["Club name"] - 1] = clubName;
+  values[columns["Role title"] - 1] = title;
+  values[columns.Category - 1] = String(params.category || "Leadership").slice(0, 40);
+  values[columns.Description - 1] = description;
+  values[columns.Commitment - 1] = String(params.commitment || "").slice(0, 120);
+  values[columns.Location - 1] = String(params.location || "").slice(0, 120);
+  values[columns.Status - 1] = "Open";
+  sheet.getRange(sheet.getLastRow() + 1, 1, 1, values.length).setValues([values]);
+  return jsonResponse({ ok: true, message: "Role published." });
+}
+
+function handleRolesList() {
+  const sheet = appSheet("Roles", ["Created at", "Owner email", "Club name", "Role title", "Category", "Description", "Commitment", "Location", "Status"]);
+  const columns = appColumns(sheet);
+  const roles = [];
+  if (sheet.getLastRow() >= 2) {
+    const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+    rows.forEach((row) => {
+      if (String(row[columns.Status - 1] || "Open") !== "Open") return;
+      roles.push({ club_name: String(row[columns["Club name"] - 1] || ""), title: String(row[columns["Role title"] - 1] || ""), category: String(row[columns.Category - 1] || ""), description: String(row[columns.Description - 1] || ""), commitment: String(row[columns.Commitment - 1] || ""), location: String(row[columns.Location - 1] || ""), status: "Open" });
+    });
+  }
+  return jsonResponse({ ok: true, roles: roles.slice(-50).reverse() });
+}
+\nfunction ensureHeaders(sheet) {
   const existingColumnCount = Math.max(sheet.getLastColumn(), 1);
   const existingRowCount = Math.max(sheet.getLastRow(), 1);
   const existingData = sheet.getRange(1, 1, existingRowCount, existingColumnCount).getValues();
