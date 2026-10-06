@@ -432,7 +432,7 @@ function appCandidateRecords(sheet, excludeEmail) {
 
 function appTokenize(text) {
   const stopWords = ["the", "and", "for", "with", "from", "that", "this", "your", "you", "are", "will", "their", "role", "club", "open", "person", "someone", "into", "what", "have", "has", "our"];
-  return Array.from(new Set(String(text || "").toLowerCase().replace(/[^a-z0-9\\s]/g, " ").split(/\\s+/).filter((term) => term.length > 2 && !stopWords.includes(term))));
+  return Array.from(new Set(String(text || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((term) => term.length > 2 && !stopWords.includes(term))));
 }
 
 function appScoreMatch(profile, role) {
