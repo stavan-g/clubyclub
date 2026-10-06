@@ -153,6 +153,7 @@ function handleAppPost(event, action) {
     if (action === "account_start") return appAccountStart(params);
     if (action === "account_verify") return appAccountVerify(params);
     if (action === "session_profile") return appSessionProfile(params);
+    if (action === "matches_list") return appMatchesList(params);
     if (action === "profile_save") return appProfileSave(params);
     if (action === "role_create") return appRoleCreate(params);
     return jsonResponse({ ok: false, error: "unknown_action" });
@@ -319,6 +320,133 @@ function handleRolesList() {
     });
   }
   return jsonResponse({ ok: true, roles: roles.slice(-50).reverse() });
+}
+
+function appMatchesList(params) {
+  const found = appAuthorizedRow(String(params.token || ""));
+  if (!found.row) return jsonResponse({ ok: false, error: "Verify your email before viewing matches." });
+
+  const profile = appPublicProfile(found.sheet, found.row);
+  const roleSheet = appSheet("Roles", ["Created at", "Owner email", "Club name", "Role title", "Category", "Description", "Commitment", "Location", "Status"]);
+  const accountSheet = appSheet("Accounts", ["Created at", "Email", "User type", "Display name", "School", "Skills", "Bio", "Availability", "Verified", "Verification code", "Code expires", "Session token"]);
+  const roles = appRoleRecords(roleSheet).filter((role) => role.status === "Open");
+
+  if (profile.user_type === "candidate") {
+    if (!String(profile.skills || "").trim() && !String(profile.bio || "").trim()) {
+      return jsonResponse({ ok: true, mode: "candidate", needs_profile: true, matches: [] });
+    }
+
+    const matches = roles.map((role) => {
+      const scored = appScoreMatch(profile, role);
+      return {
+        title: role.title,
+        club_name: role.club_name,
+        category: role.category,
+        description: role.description,
+        commitment: role.commitment,
+        location: role.location,
+        score: scored.score,
+        matched_skills: scored.matched_skills,
+      };
+    }).sort((a, b) => b.score - a.score);
+
+    return jsonResponse({
+      ok: true,
+      mode: "candidate",
+      matches: matches.slice(0, 25),
+      message: matches.length ? "" : "No open roles are published yet.",
+    });
+  }
+
+  const ownedRoles = roles.filter((role) => role.owner_email === profile.email);
+  if (!ownedRoles.length) {
+    return jsonResponse({
+      ok: true,
+      mode: "club",
+      matches: [],
+      message: "Publish an open role to see candidate matches.",
+    });
+  }
+
+  const candidates = appCandidateRecords(accountSheet, profile.email);
+  const matches = [];
+
+  ownedRoles.forEach((role) => {
+    candidates.forEach((candidate) => {
+      const scored = appScoreMatch(candidate, role);
+      matches.push({
+        display_name: candidate.display_name,
+        school: candidate.school,
+        skills: candidate.skills,
+        bio: candidate.bio,
+        role_title: role.title,
+        score: scored.score,
+        matched_skills: scored.matched_skills,
+      });
+    });
+  });
+
+  matches.sort((a, b) => b.score - a.score);
+
+  return jsonResponse({
+    ok: true,
+    mode: "club",
+    matches: matches.slice(0, 25),
+    message: matches.length ? "" : "No verified candidate profiles are available yet.",
+  });
+}
+
+function appRoleRecords(sheet) {
+  const columns = appColumns(sheet);
+  if (sheet.getLastRow() < 2) return [];
+
+  return sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues().map((row) => ({
+    owner_email: String(row[columns["Owner email"] - 1] || "").trim().toLowerCase(),
+    club_name: String(row[columns["Club name"] - 1] || ""),
+    title: String(row[columns["Role title"] - 1] || ""),
+    category: String(row[columns.Category - 1] || ""),
+    description: String(row[columns.Description - 1] || ""),
+    commitment: String(row[columns.Commitment - 1] || ""),
+    location: String(row[columns.Location - 1] || ""),
+    status: String(row[columns.Status - 1] || "Open"),
+  }));
+}
+
+function appCandidateRecords(sheet, excludeEmail) {
+  const columns = appColumns(sheet);
+  if (sheet.getLastRow() < 2) return [];
+
+  return sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues()
+    .map((row) => ({
+      email: String(row[columns.Email - 1] || "").trim().toLowerCase(),
+      user_type: String(row[columns["User type"] - 1] || ""),
+      display_name: String(row[columns["Display name"] - 1] || ""),
+      school: String(row[columns.School - 1] || ""),
+      skills: String(row[columns.Skills - 1] || ""),
+      bio: String(row[columns.Bio - 1] || ""),
+      availability: String(row[columns.Availability - 1] || ""),
+      verified: String(row[columns.Verified - 1] || ""),
+    }))
+    .filter((candidate) => candidate.user_type === "candidate" && candidate.verified === "Yes" && candidate.email !== String(excludeEmail || "").toLowerCase());
+}
+
+function appTokenize(text) {
+  const stopWords = ["the", "and", "for", "with", "from", "that", "this", "your", "you", "are", "will", "their", "role", "club", "open", "person", "someone", "into", "what", "have", "has", "our"];
+  return Array.from(new Set(String(text || "").toLowerCase().replace(/[^a-z0-9\\s]/g, " ").split(/\\s+/).filter((term) => term.length > 2 && !stopWords.includes(term))));
+}
+
+function appScoreMatch(profile, role) {
+  const profileTerms = new Set(appTokenize([profile.skills, profile.bio, profile.school].join(" ")));
+  const coreTerms = appTokenize([role.title, role.category].join(" "));
+  const detailTerms = appTokenize([role.description, role.commitment].join(" "));
+  const matchedCore = coreTerms.filter((term) => profileTerms.has(term));
+  const matchedDetail = detailTerms.filter((term) => profileTerms.has(term));
+  const denominator = Math.max(1, coreTerms.length * 2 + detailTerms.length);
+  const score = Math.min(99, Math.round(((matchedCore.length * 2) + matchedDetail.length) / denominator * 100));
+  return {
+    score,
+    matched_skills: Array.from(new Set(matchedCore.concat(matchedDetail))).slice(0, 6),
+  };
 }
 
 function ensureHeaders(sheet) {

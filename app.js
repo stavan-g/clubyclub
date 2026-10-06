@@ -43,6 +43,7 @@ async function loadSession() {
     state.email = result.profile.email;
     fillProfile(result.profile);
     setProtected(true);
+    loadMatches();
   } catch (error) {
     localStorage.removeItem('clubyclub_token');
     localStorage.removeItem('clubyclub_email');
@@ -50,6 +51,54 @@ async function loadSession() {
     setProtected(false);
   }
 }
+
+async function loadMatches() {
+  const feed = $('[data-match-feed]');
+  if (!feed || !state.token) return;
+
+  try {
+    const result = await call('matches_list', { token: state.token });
+    const heading = $('[data-match-heading]');
+    const intro = $('[data-match-intro]');
+
+    if (result.needs_profile) {
+      if (heading) heading.textContent = 'Complete your profile first.';
+      if (intro) intro.textContent = 'Add your skills and short bio, then we can calculate meaningful fits.';
+      feed.innerHTML = '<p class="empty-state">Save your profile to unlock matching.</p>';
+      return;
+    }
+
+    if (result.mode === 'club') {
+      if (heading) heading.textContent = 'Candidates for your roles.';
+      if (intro) intro.textContent = 'These candidates are ranked from the skills and experience they added to Clubyclub.';
+    } else {
+      if (heading) heading.textContent = 'Roles that fit your signal.';
+      if (intro) intro.textContent = 'Scores are based on overlap between your profile and each open role.';
+    }
+
+    if (!result.matches || !result.matches.length) {
+      feed.innerHTML = '<p class="empty-state">' + escapeHtml(result.message || 'No matches yet. Add more detail to your profile or publish an open role.') + '</p>';
+      return;
+    }
+
+    feed.innerHTML = result.matches.map((match) => {
+      const title = result.mode === 'club'
+        ? escapeHtml(match.display_name || 'Potential candidate')
+        : escapeHtml(match.title);
+      const subtitle = result.mode === 'club'
+        ? escapeHtml((match.school || 'Student') + ' · for ' + match.role_title)
+        : escapeHtml((match.club_name || 'Club') + ' · ' + (match.category || 'Open role'));
+      const description = result.mode === 'club'
+        ? escapeHtml(match.bio || match.skills || 'Profile details coming soon.')
+        : escapeHtml(match.description || 'Role details coming soon.');
+      const tags = (match.matched_skills || []).map((term) => '<span>' + escapeHtml(term) + '</span>').join('');
+      return '<article class="match-card"><div class="match-card-top"><div><h3>' + title + '</h3><div class="feed-meta">' + subtitle + '</div></div><span class="match-score">' + escapeHtml(match.score) + '% fit</span></div><p>' + description + '</p>' + (tags ? '<div class="match-tags">' + tags + '</div>' : '') + '</article>';
+    }).join('');
+  } catch (error) {
+    feed.innerHTML = '<p class="empty-state">Matching is temporarily unavailable. Try refresh.</p>';
+  }
+}
+
 async function loadRoles() {
   const feed = $('[data-role-feed]');
   try {
@@ -84,18 +133,20 @@ $('[data-verify-form]').addEventListener('submit', async (event) => {
     setProtected(true);
     message('[data-account-message]', 'Verified. Your profile and role tools are unlocked.');
     showToast('Account ready', 'Your Clubyclub workspace is unlocked.');
+    loadMatches();
   } catch (error) { message('[data-account-message]', error.message, true); }
 });
 $('[data-profile-form]').addEventListener('submit', async (event) => {
   event.preventDefault();
-  try { const result = await call('profile_save', { token: state.token, ...Object.fromEntries(new FormData(event.currentTarget)) }); fillProfile(result.profile); message('[data-profile-message]', 'Profile saved.'); showToast('Profile saved', 'Your information is ready for matching.'); }
+  try { const result = await call('profile_save', { token: state.token, ...Object.fromEntries(new FormData(event.currentTarget)) }); fillProfile(result.profile); message('[data-profile-message]', 'Profile saved.'); showToast('Profile saved', 'Your information is ready for matching.'); loadMatches(); }
   catch (error) { message('[data-profile-message]', error.message, true); }
 });
 $('[data-role-form]').addEventListener('submit', async (event) => {
   event.preventDefault();
-  try { await call('role_create', { token: state.token, ...Object.fromEntries(new FormData(event.currentTarget)) }); event.currentTarget.reset(); message('[data-role-message]', 'Role published to the open-role feed.'); showToast('Role published', 'Clubs can now start finding candidates.'); loadRoles(); }
+  try { await call('role_create', { token: state.token, ...Object.fromEntries(new FormData(event.currentTarget)) }); event.currentTarget.reset(); message('[data-role-message]', 'Role published to the open-role feed.'); showToast('Role published', 'Clubs can now start finding candidates.'); loadRoles(); loadMatches(); }
   catch (error) { message('[data-role-message]', error.message, true); }
 });
 $('[data-refresh-roles]').addEventListener('click', loadRoles);
+$('[data-refresh-matches]').addEventListener('click', loadMatches);
 loadSession();
 loadRoles();

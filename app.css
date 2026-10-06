@@ -28,3 +28,12 @@
 .text-button { padding:8px 0; color:var(--navy); background:transparent; border:0; font:inherit; font-weight:800; cursor:pointer; }
 .app-footer { display:flex; align-items:center; justify-content:space-between; gap:20px; }
 @media (max-width:650px) { .app-shell { width:calc(100% - 28px); padding-top:110px; } .card-heading { display:block; } .status-pill { margin-top:15px; } .form-grid { grid-template-columns:1fr; } .form-grid .full { grid-column:auto; } .app-footer { display:grid; } }
+.match-intro { margin:-10px 0 22px; color:#687187; font-size:13px; line-height:1.55; }
+.match-feed { display:grid; gap:12px; }
+.match-card { padding:20px; background:#f5f6f8; border-radius:16px; }
+.match-card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+.match-card h3 { margin:0 0 6px; font-size:20px; }
+.match-card p { margin:7px 0 0; color:#687187; line-height:1.55; font-size:13px; }
+.match-score { flex:0 0 auto; padding:8px 11px; color:#132449; background:var(--lime); border-radius:999px; font-size:12px; font-weight:900; }
+.match-tags { display:flex; flex-wrap:wrap; gap:7px; margin-top:14px; }
+.match-tags span { padding:6px 9px; color:#536078; background:#fff; border-radius:999px; font-size:11px; font-weight:800; }
