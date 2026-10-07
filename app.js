@@ -143,7 +143,18 @@ $('[data-profile-form]').addEventListener('submit', async (event) => {
 });
 $('[data-role-form]').addEventListener('submit', async (event) => {
   event.preventDefault();
-  try { await call('role_create', { token: state.token, ...Object.fromEntries(new FormData(event.currentTarget)) }); event.currentTarget.reset(); message('[data-role-message]', 'Role published to the open-role feed.'); showToast('Role published', 'Clubs can now start finding candidates.'); loadRoles(); loadMatches(); }
+  const form = event.currentTarget;
+  try {
+    await call('role_create', {
+      token: state.token,
+      ...Object.fromEntries(new FormData(form))
+    });
+    form.reset();
+    message('[data-role-message]', 'Role published to the open-role feed.');
+    showToast('Role published', 'Clubs can now start finding candidates.');
+    loadRoles();
+    loadMatches();
+  }
   catch (error) { message('[data-role-message]', error.message, true); }
 });
 $('[data-refresh-roles]').addEventListener('click', loadRoles);
