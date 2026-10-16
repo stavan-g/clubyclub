@@ -406,8 +406,14 @@ function appRoleRecords(sheet) {
   const columns = appColumns(sheet);
   if (sheet.getLastRow() < 2) return [];
 
-  return sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues().map((row) => ({
-    role_id: String(row[columns["Role ID"] - 1] || ""),
+  return sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues().map((row, index) => {
+    let roleId = String(row[columns["Role ID"] - 1] || "").trim();
+    if (!roleId) {
+      roleId = Utilities.getUuid();
+      sheet.getRange(index + 2, columns["Role ID"]).setValue(roleId);
+    }
+    return {
+    role_id: roleId,
     owner_email: String(row[columns["Owner email"] - 1] || "").trim().toLowerCase(),
     club_name: String(row[columns["Club name"] - 1] || ""),
     title: String(row[columns["Role title"] - 1] || ""),
@@ -418,7 +424,8 @@ function appRoleRecords(sheet) {
     skills: String(row[columns.Skills - 1] || ""),
     deadline: String(row[columns.Deadline - 1] || ""),
     status: String(row[columns.Status - 1] || "Open"),
-  }));
+    };
+  });
 }
 
 function appCandidateRecords(sheet, excludeEmail) {

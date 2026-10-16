@@ -113,8 +113,8 @@ async function loadRoles() {
 }
 function renderRoles() {
   const feed = $('[data-role-feed]');
-  const query = String($('[data-role-search']?.value || '').toLowerCase().trim();
-  const category = $('[data-role-category']?.value || '');
+  const query = String($('[data-role-search]')?.value || '').toLowerCase().trim();
+  const category = $('[data-role-category]')?.value || '';
   const roles = roleCache.filter((role) => {
     const haystack = [role.title, role.club_name, role.category, role.skills, role.location, role.description].join(' ').toLowerCase();
     return (!query || haystack.includes(query)) && (!category || role.category === category);
