@@ -3,6 +3,8 @@ const state = { token: localStorage.getItem('clubyclub_token') || '', email: loc
 const $ = (selector) => document.querySelector(selector);
 const protectedSections = document.querySelectorAll('[data-protected]');
 const toast = $('[data-toast]');
+let roleCache = [];
+let selectedRoleId = '';
 let toastTimer;
 
 function message(selector, text, error = false) {
@@ -44,6 +46,7 @@ async function loadSession() {
     fillProfile(result.profile);
     setProtected(true);
     loadMatches();
+    loadDashboard();
   } catch (error) {
     localStorage.removeItem('clubyclub_token');
     localStorage.removeItem('clubyclub_email');
@@ -104,9 +107,50 @@ async function loadRoles() {
   try {
     const response = await fetch(endpoint + '?action=roles_list');
     const result = await response.json();
-    if (!result.ok || !result.roles.length) { feed.innerHTML = '<p class="empty-state">No roles are published yet. Be the first club to post one.</p>'; return; }
-    feed.innerHTML = result.roles.map((role) => '<article class="feed-role"><div class="feed-role-top"><div><h3>' + escapeHtml(role.title) + '</h3><div class="feed-meta">' + escapeHtml(role.club_name) + ' · ' + escapeHtml(role.category) + '</div></div><span class="status-pill success">' + escapeHtml(role.status) + '</span></div><p>' + escapeHtml(role.description) + '</p><p class="feed-meta">' + escapeHtml(role.commitment || 'Flexible commitment') + ' · ' + escapeHtml(role.location || 'Location flexible') + '</p></article>').join('');
+    roleCache = result.roles || [];
+    renderRoles();
   } catch (error) { feed.innerHTML = '<p class="empty-state">Roles are temporarily unavailable. Try refresh.</p>'; }
+}
+function renderRoles() {
+  const feed = $('[data-role-feed]');
+  const query = String($('[data-role-search']?.value || '').toLowerCase().trim();
+  const category = $('[data-role-category']?.value || '');
+  const roles = roleCache.filter((role) => {
+    const haystack = [role.title, role.club_name, role.category, role.skills, role.location, role.description].join(' ').toLowerCase();
+    return (!query || haystack.includes(query)) && (!category || role.category === category);
+  });
+  if (!roles.length) { feed.innerHTML = '<p class="empty-state">No roles match those filters.</p>'; return; }
+  feed.innerHTML = roles.map((role) => {
+    const deadline = role.deadline ? 'Apply by ' + escapeHtml(role.deadline) : 'Applications open';
+    const skills = role.skills ? '<div class="role-tags">' + role.skills.split(',').map((skill) => '<span>' + escapeHtml(skill.trim()) + '</span>').join('') + '</div>' : '';
+    return '<article class="feed-role"><div class="feed-role-top"><div><h3>' + escapeHtml(role.title) + '</h3><div class="feed-meta">' + escapeHtml(role.club_name) + ' · ' + escapeHtml(role.category) + '</div></div><span class="status-pill success">' + escapeHtml(role.status) + '</span></div><p>' + escapeHtml(role.description) + '</p><div class="feed-meta role-facts">' + escapeHtml(role.commitment || 'Flexible commitment') + ' · ' + escapeHtml(role.location || 'Location flexible') + ' · ' + deadline + '</div>' + skills + '<div class="role-actions"><button class="button button-small button-dark" type="button" data-role-details="' + escapeHtml(role.role_id) + '">View details</button><button class="button button-small button-primary" type="button" data-apply-role="' + escapeHtml(role.role_id) + '">Apply</button></div></article>';
+  }).join('');
+}
+function showRoleDetails(roleId) {
+  const role = roleCache.find((item) => item.role_id === roleId);
+  if (!role) return;
+  showToast(role.title, [role.club_name, role.location || 'Location flexible', role.skills || 'Skills flexible', role.deadline ? 'Deadline: ' + role.deadline : 'No deadline'].join(' · '));
+}
+async function applyToRole(roleId) {
+  if (!state.token) { showToast('Sign in required', 'Verify your email before applying.', true); return; }
+  const note = window.prompt('Add a short note for the club (optional):', '');
+  if (note === null) return;
+  try {
+    const result = await call('application_create', { token: state.token, role_id: roleId, note });
+    showToast('Application sent', result.message || 'The club received your application.');
+    loadDashboard();
+  } catch (error) { showToast('Application not sent', error.message, true); }
+}
+async function loadDashboard() {
+  const feed = $('[data-dashboard-feed]');
+  if (!feed || !state.token) return;
+  try {
+    const result = await call('dashboard_data', { token: state.token });
+    $('[data-dashboard-heading]').textContent = result.mode === 'club' ? 'Your club workspace.' : 'Your candidate workspace.';
+    const applications = result.applications || [];
+    const roles = result.roles || [];
+    feed.innerHTML = '<div class="dashboard-stat"><strong>' + (result.mode === 'club' ? roles.length : applications.length) + '</strong><span>' + (result.mode === 'club' ? 'open roles' : 'applications') + '</span></div><div class="dashboard-panel"><h3>' + (result.mode === 'club' ? 'Recent roles' : 'Application status') + '</h3>' + (result.mode === 'club' ? (roles.length ? roles.slice(0, 5).map((role) => '<p><strong>' + escapeHtml(role.title) + '</strong><br><span class="feed-meta">' + escapeHtml(role.club_name) + ' · ' + escapeHtml(role.status) + '</span></p>').join('') : '<p class="empty-state">Publish your first role above.</p>') : (applications.length ? applications.slice(0, 5).map((application) => '<p><strong>' + escapeHtml(application.role_title) + '</strong><br><span class="feed-meta">' + escapeHtml(application.club_name) + ' · ' + escapeHtml(application.status) + '</span></p>').join('') : '<p class="empty-state">You have not applied to a role yet.</p>')) + '</div><div class="dashboard-panel"><h3>' + (result.mode === 'club' ? 'Applicants' : 'Profile signal') + '</h3>' + (result.mode === 'club' ? '<p class="dashboard-number">' + (result.applicant_count || 0) + '</p><span class="feed-meta">applications received</span>' : '<p>' + escapeHtml(result.profile.skills || 'Add skills to improve your matches.') + '</p>') + '</div>';
+  } catch (error) { feed.innerHTML = '<p class="empty-state">Dashboard is temporarily unavailable. Try refresh.</p>'; }
 }
 function escapeHtml(value) { return String(value || '').replace(/[&<>"]/g, (character) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[character])); }
 
@@ -159,5 +203,14 @@ $('[data-role-form]').addEventListener('submit', async (event) => {
 });
 $('[data-refresh-roles]').addEventListener('click', loadRoles);
 $('[data-refresh-matches]').addEventListener('click', loadMatches);
+$('[data-refresh-dashboard]')?.addEventListener('click', loadDashboard);
+$('[data-role-search]')?.addEventListener('input', renderRoles);
+$('[data-role-category]')?.addEventListener('change', renderRoles);
+$('[data-role-feed]')?.addEventListener('click', (event) => {
+  const details = event.target.closest('[data-role-details]');
+  const apply = event.target.closest('[data-apply-role]');
+  if (details) showRoleDetails(details.dataset.roleDetails);
+  if (apply) applyToRole(apply.dataset.applyRole);
+});
 loadSession();
 loadRoles();

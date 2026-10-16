@@ -156,6 +156,9 @@ function handleAppPost(event, action) {
     if (action === "matches_list") return appMatchesList(params);
     if (action === "profile_save") return appProfileSave(params);
     if (action === "role_create") return appRoleCreate(params);
+    if (action === "application_create") return appApplicationCreate(params);
+    if (action === "applications_list") return appApplicationsList(params);
+    if (action === "dashboard_data") return appDashboardData(params);
     return jsonResponse({ ok: false, error: "unknown_action" });
   } catch (error) {
     console.error(error);
@@ -292,7 +295,7 @@ function appRoleCreate(params) {
   const title = String(params.title || "").trim().slice(0, 120);
   const description = String(params.description || "").trim().slice(0, 2000);
   if (!clubName || !title || !description) return jsonResponse({ ok: false, error: "Club name, role title, and description are required." });
-  const sheet = appSheet("Roles", ["Created at", "Owner email", "Club name", "Role title", "Category", "Description", "Commitment", "Location", "Status"]);
+  const sheet = appSheet("Roles", ["Created at", "Owner email", "Club name", "Role title", "Category", "Description", "Commitment", "Location", "Status", "Skills", "Deadline", "Role ID"]);
   const columns = appColumns(sheet);
   const values = Array(sheet.getLastColumn()).fill("");
   values[columns["Created at"] - 1] = new Date();
@@ -304,6 +307,9 @@ function appRoleCreate(params) {
   values[columns.Commitment - 1] = String(params.commitment || "").slice(0, 120);
   values[columns.Location - 1] = String(params.location || "").slice(0, 120);
   values[columns.Status - 1] = "Open";
+  values[columns.Skills - 1] = String(params.skills || "").trim().slice(0, 500);
+  values[columns.Deadline - 1] = String(params.deadline || "").trim().slice(0, 30);
+  values[columns["Role ID"] - 1] = Utilities.getUuid();
   sheet.getRange(sheet.getLastRow() + 1, 1, 1, values.length).setValues([values]);
   return jsonResponse({ ok: true, message: "Role published." });
 }
@@ -316,7 +322,7 @@ function handleRolesList() {
     const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
     rows.forEach((row) => {
       if (String(row[columns.Status - 1] || "Open") !== "Open") return;
-      roles.push({ club_name: String(row[columns["Club name"] - 1] || ""), title: String(row[columns["Role title"] - 1] || ""), category: String(row[columns.Category - 1] || ""), description: String(row[columns.Description - 1] || ""), commitment: String(row[columns.Commitment - 1] || ""), location: String(row[columns.Location - 1] || ""), status: "Open" });
+      roles.push({ role_id: String(row[columns["Role ID"] - 1] || ""), club_name: String(row[columns["Club name"] - 1] || ""), title: String(row[columns["Role title"] - 1] || ""), category: String(row[columns.Category - 1] || ""), description: String(row[columns.Description - 1] || ""), commitment: String(row[columns.Commitment - 1] || ""), location: String(row[columns.Location - 1] || ""), skills: String(row[columns.Skills - 1] || ""), deadline: String(row[columns.Deadline - 1] || ""), status: "Open" });
     });
   }
   return jsonResponse({ ok: true, roles: roles.slice(-50).reverse() });
@@ -327,7 +333,7 @@ function appMatchesList(params) {
   if (!found.row) return jsonResponse({ ok: false, error: "Verify your email before viewing matches." });
 
   const profile = appPublicProfile(found.sheet, found.row);
-  const roleSheet = appSheet("Roles", ["Created at", "Owner email", "Club name", "Role title", "Category", "Description", "Commitment", "Location", "Status"]);
+  const roleSheet = appSheet("Roles", ["Created at", "Owner email", "Club name", "Role title", "Category", "Description", "Commitment", "Location", "Status", "Skills", "Deadline", "Role ID"]);
   const accountSheet = appSheet("Accounts", ["Created at", "Email", "User type", "Display name", "School", "Skills", "Bio", "Availability", "Verified", "Verification code", "Code expires", "Session token"]);
   const roles = appRoleRecords(roleSheet).filter((role) => role.status === "Open");
 
@@ -401,6 +407,7 @@ function appRoleRecords(sheet) {
   if (sheet.getLastRow() < 2) return [];
 
   return sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues().map((row) => ({
+    role_id: String(row[columns["Role ID"] - 1] || ""),
     owner_email: String(row[columns["Owner email"] - 1] || "").trim().toLowerCase(),
     club_name: String(row[columns["Club name"] - 1] || ""),
     title: String(row[columns["Role title"] - 1] || ""),
@@ -408,6 +415,8 @@ function appRoleRecords(sheet) {
     description: String(row[columns.Description - 1] || ""),
     commitment: String(row[columns.Commitment - 1] || ""),
     location: String(row[columns.Location - 1] || ""),
+    skills: String(row[columns.Skills - 1] || ""),
+    deadline: String(row[columns.Deadline - 1] || ""),
     status: String(row[columns.Status - 1] || "Open"),
   }));
 }
@@ -428,6 +437,66 @@ function appCandidateRecords(sheet, excludeEmail) {
       verified: String(row[columns.Verified - 1] || ""),
     }))
     .filter((candidate) => candidate.user_type === "candidate" && candidate.verified === "Yes" && candidate.email !== String(excludeEmail || "").toLowerCase());
+}
+
+function appApplicationCreate(params) {
+  const found = appAuthorizedRow(String(params.token || ""));
+  if (!found.row) return jsonResponse({ ok: false, error: "Verify your email before applying." });
+  const candidate = appPublicProfile(found.sheet, found.row);
+  if (candidate.user_type !== "candidate") return jsonResponse({ ok: false, error: "Only candidate accounts can apply to roles." });
+  const roleSheet = appSheet("Roles", ["Created at", "Owner email", "Club name", "Role title", "Category", "Description", "Commitment", "Location", "Status", "Skills", "Deadline", "Role ID"]);
+  const roleColumns = appColumns(roleSheet);
+  const roleId = String(params.role_id || "").trim();
+  const roleRow = appFindRow(roleSheet, "Role ID", roleId);
+  if (!roleRow) return jsonResponse({ ok: false, error: "That role is no longer available." });
+  const role = appRoleRecords(roleSheet).find((item) => item.role_id === roleId);
+  if (!role || role.status !== "Open") return jsonResponse({ ok: false, error: "Applications are closed for this role." });
+  if (role.deadline && role.deadline < Utilities.formatDate(new Date(), SUMMARY_TIME_ZONE, "yyyy-MM-dd")) return jsonResponse({ ok: false, error: "The application deadline has passed." });
+  const applications = appSheet("Applications", ["Applied at", "Application ID", "Role ID", "Candidate email", "Candidate name", "Candidate school", "Candidate skills", "Note", "Status", "Club email"]);
+  const appColumnsMap = appColumns(applications);
+  if (applications.getLastRow() >= 2) {
+    const existing = applications.getRange(2, 1, applications.getLastRow() - 1, applications.getLastColumn()).getValues();
+    if (existing.some((row) => String(row[appColumnsMap["Role ID"] - 1] || "") === roleId && String(row[appColumnsMap["Candidate email"] - 1] || "").toLowerCase() === candidate.email.toLowerCase())) return jsonResponse({ ok: false, error: "You already applied to this role." });
+  }
+  const values = Array(applications.getLastColumn()).fill("");
+  values[appColumnsMap["Applied at"] - 1] = new Date();
+  values[appColumnsMap["Application ID"] - 1] = Utilities.getUuid();
+  values[appColumnsMap["Role ID"] - 1] = roleId;
+  values[appColumnsMap["Candidate email"] - 1] = candidate.email;
+  values[appColumnsMap["Candidate name"] - 1] = candidate.display_name;
+  values[appColumnsMap["Candidate school"] - 1] = candidate.school;
+  values[appColumnsMap["Candidate skills"] - 1] = candidate.skills;
+  values[appColumnsMap.Note - 1] = String(params.note || "").trim().slice(0, 1000);
+  values[appColumnsMap.Status - 1] = "Submitted";
+  values[appColumnsMap["Club email"] - 1] = role.owner_email;
+  applications.getRange(applications.getLastRow() + 1, 1, 1, values.length).setValues([values]);
+  return jsonResponse({ ok: true, message: "Your application was sent to the club." });
+}
+
+function appApplicationsList(params) {
+  const found = appAuthorizedRow(String(params.token || ""));
+  if (!found.row) return jsonResponse({ ok: false, error: "Verify your email before viewing applications." });
+  const profile = appPublicProfile(found.sheet, found.row);
+  const applications = appSheet("Applications", ["Applied at", "Application ID", "Role ID", "Candidate email", "Candidate name", "Candidate school", "Candidate skills", "Note", "Status", "Club email"]);
+  const columns = appColumns(applications);
+  const rows = applications.getLastRow() < 2 ? [] : applications.getRange(2, 1, applications.getLastRow() - 1, applications.getLastColumn()).getValues();
+  const output = rows.map((row) => ({ applied_at: String(row[columns["Applied at"] - 1] || ""), role_id: String(row[columns["Role ID"] - 1] || ""), candidate_email: String(row[columns["Candidate email"] - 1] || ""), candidate_name: String(row[columns["Candidate name"] - 1] || ""), candidate_school: String(row[columns["Candidate school"] - 1] || ""), note: String(row[columns.Note - 1] || ""), status: String(row[columns.Status - 1] || ""), club_email: String(row[columns["Club email"] - 1] || "") })).filter((item) => profile.user_type === "club" ? item.club_email === profile.email : item.candidate_email === profile.email);
+  const roles = appRoleRecords(appSheet("Roles", ["Created at", "Owner email", "Club name", "Role title", "Category", "Description", "Commitment", "Location", "Status", "Skills", "Deadline", "Role ID"]));
+  output.forEach((item) => { const role = roles.find((candidateRole) => candidateRole.role_id === item.role_id); item.role_title = role ? role.title : "Role"; item.club_name = role ? role.club_name : "Club"; });
+  return jsonResponse({ ok: true, applications: output.slice(-50).reverse() });
+}
+
+function appDashboardData(params) {
+  const found = appAuthorizedRow(String(params.token || ""));
+  if (!found.row) return jsonResponse({ ok: false, error: "Verify your email before viewing your dashboard." });
+  const profile = appPublicProfile(found.sheet, found.row);
+  const roles = appRoleRecords(appSheet("Roles", ["Created at", "Owner email", "Club name", "Role title", "Category", "Description", "Commitment", "Location", "Status", "Skills", "Deadline", "Role ID"]));
+  const applicationsResult = appApplicationsList({ token: params.token });
+  const parsed = JSON.parse(applicationsResult.getContent());
+  const applications = parsed.applications || [];
+  if (profile.user_type === "candidate") return jsonResponse({ ok: true, mode: "candidate", profile, applications, roles: [] });
+  const ownedRoles = roles.filter((role) => role.owner_email === profile.email);
+  return jsonResponse({ ok: true, mode: "club", profile, applications, roles: ownedRoles, applicant_count: applications.length });
 }
 
 function appTokenize(text) {

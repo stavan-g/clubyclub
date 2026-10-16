@@ -85,16 +85,30 @@
         <label>Category<select name="category"><option>Leadership</option><option>Operations</option><option>Creative</option><option>Community</option></select></label>
         <label>Commitment<input name="commitment" placeholder="2–4 hours/week"></label>
         <label>Location<input name="location" placeholder="Campus, remote, or hybrid"></label>
+        <label>Skills wanted<input name="skills" placeholder="Design, outreach, event planning"></label>
+        <label>Application deadline<input name="deadline" type="date"></label>
         <label class="full">What will this person do?<textarea name="description" rows="4" required placeholder="Describe the responsibilities, expectations, and what success looks like."></textarea></label>
         <button class="button button-primary" type="submit">Publish role <span>→</span></button>
       </form>
       <p class="form-message" data-role-message aria-live="polite"></p>
     </section>
 
+    <section class="app-card" id="dashboard" data-protected>
+      <div class="card-heading">
+        <div><div class="section-kicker">04 · Dashboard</div><h2 data-dashboard-heading>Your clubyclub workspace.</h2></div>
+        <button class="text-button" data-refresh-dashboard type="button">Refresh ↻</button>
+      </div>
+      <div class="dashboard-grid" data-dashboard-feed><p class="empty-state">Sign in to load your dashboard.</p></div>
+    </section>
+
     <section class="app-card" id="roles">
       <div class="card-heading">
         <div><div class="section-kicker">Open roles</div><h2>Find a place to contribute.</h2></div>
         <button class="text-button" data-refresh-roles type="button">Refresh ↻</button>
+      </div>
+      <div class="role-tools">
+        <input data-role-search type="search" placeholder="Search roles, clubs, skills, or locations" aria-label="Search open roles">
+        <select data-role-category aria-label="Filter by category"><option value="">All categories</option><option>Leadership</option><option>Operations</option><option>Creative</option><option>Community</option></select>
       </div>
       <div class="role-feed" data-role-feed><p class="empty-state">Loading open roles…</p></div>
     </section>
