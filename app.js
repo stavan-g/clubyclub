@@ -178,6 +178,7 @@ $('[data-verify-form]').addEventListener('submit', async (event) => {
     message('[data-account-message]', 'Verified. Your profile and role tools are unlocked.');
     showToast('Account ready', 'Your Clubyclub workspace is unlocked.');
     loadMatches();
+    loadDashboard();
   } catch (error) { message('[data-account-message]', error.message, true); }
 });
 $('[data-profile-form]').addEventListener('submit', async (event) => {

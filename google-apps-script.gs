@@ -315,7 +315,7 @@ function appRoleCreate(params) {
 }
 
 function handleRolesList() {
-  const sheet = appSheet("Roles", ["Created at", "Owner email", "Club name", "Role title", "Category", "Description", "Commitment", "Location", "Status"]);
+  const sheet = appSheet("Roles", ["Created at", "Owner email", "Club name", "Role title", "Category", "Description", "Commitment", "Location", "Status", "Skills", "Deadline", "Role ID"]);
   const columns = appColumns(sheet);
   const roles = [];
   if (sheet.getLastRow() >= 2) {
