@@ -320,9 +320,14 @@ function handleRolesList() {
   const roles = [];
   if (sheet.getLastRow() >= 2) {
     const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
-    rows.forEach((row) => {
+    rows.forEach((row, index) => {
       if (String(row[columns.Status - 1] || "Open") !== "Open") return;
-      roles.push({ role_id: String(row[columns["Role ID"] - 1] || ""), club_name: String(row[columns["Club name"] - 1] || ""), title: String(row[columns["Role title"] - 1] || ""), category: String(row[columns.Category - 1] || ""), description: String(row[columns.Description - 1] || ""), commitment: String(row[columns.Commitment - 1] || ""), location: String(row[columns.Location - 1] || ""), skills: String(row[columns.Skills - 1] || ""), deadline: String(row[columns.Deadline - 1] || ""), status: "Open" });
+      let roleId = String(row[columns["Role ID"] - 1] || "").trim();
+      if (!roleId) {
+        roleId = Utilities.getUuid();
+        sheet.getRange(index + 2, columns["Role ID"]).setValue(roleId);
+      }
+      roles.push({ role_id: roleId, club_name: String(row[columns["Club name"] - 1] || ""), title: String(row[columns["Role title"] - 1] || ""), category: String(row[columns.Category - 1] || ""), description: String(row[columns.Description - 1] || ""), commitment: String(row[columns.Commitment - 1] || ""), location: String(row[columns.Location - 1] || ""), skills: String(row[columns.Skills - 1] || ""), deadline: String(row[columns.Deadline - 1] || ""), status: "Open" });
     });
   }
   return jsonResponse({ ok: true, roles: roles.slice(-50).reverse() });
